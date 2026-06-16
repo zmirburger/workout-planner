@@ -4,6 +4,8 @@ A static, read-only "Next Workout" dashboard. A single Cloudflare Pages Function
 reads a Notion page **server-side** and returns its workout JSON; the static page
 renders it with Pull / Push tabs (the upcoming session is badged **NEXT**).
 
+**Live:** <https://workout.zmirburger.com>
+
 - **No framework, no build step.** `public/index.html` is plain HTML/CSS/JS.
 - **The Notion token never reaches the browser.** It lives only as a Cloudflare
   secret and is used exclusively inside the server-side Function.
@@ -93,14 +95,27 @@ wrangler pages secret put NOTION_TOKEN --project-name workout-planner
    - `NOTION_TOKEN` — **encrypted / secret** — your Notion token
 5. Deploy. Each push to `main` redeploys automatically.
 
+### Custom domain
+
+Pages project → **Custom domains → Set up a custom domain** → enter the hostname
+(here, `workout.zmirburger.com`). When the apex zone is already on the same
+Cloudflare account, the proxied CNAME is created automatically and the
+certificate provisions in a few minutes.
+
+### Current deployment
+
+`main` is connected to a Cloudflare Pages project named **`workout-planner`**
+(Git integration), served at <https://workout.zmirburger.com>. Every push to
+`main` auto-redeploys; workout content is edited in Notion (no redeploy needed).
+
 ## Acceptance checks
 
 ```bash
 # Shaped { "pull": {...}, "push": {...} }, each with a rows array
-curl https://<deployment-url>/api/prescription
+curl https://workout.zmirburger.com/api/prescription
 
 # Fresh data, bypassing the 5-minute edge cache
-curl 'https://<deployment-url>/api/prescription?nocache=1'
+curl 'https://workout.zmirburger.com/api/prescription?nocache=1'
 ```
 
 - Root URL renders the dashboard with **Pull / Push** tabs; Pull is badged **NEXT**.
