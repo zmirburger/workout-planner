@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Next Workout</title>
+<style>
+  :root {
+    --bg: #1c1c1c;
+    --fg: #e8e6e1;
+    --muted: #9a978f;
+    --rule: #3a3a38;
+    --accent: #d8d4cb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    padding: 28px 20px 60px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  .tabs { display: flex; gap: 4px; margin: 0 0 22px; border-bottom: 1px solid var(--rule); }
+  .tab {
+    background: none; border: none; color: var(--muted); font: inherit;
+    font-size: 14px; font-weight: 600; padding: 8px 14px 11px; cursor: pointer;
+    position: relative; display: flex; align-items: center; gap: 7px;
+  }
+  .tab.active { color: var(--fg); }
+  .tab.active::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--fg);
+  }
+  .badge {
+    font-size: 9.5px; font-weight: 700; letter-spacing: .06em;
+    background: var(--fg); color: var(--bg); padding: 2px 5px; border-radius: 3px;
+  }
+  h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 27px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.01em;
+  }
+  .subtitle { color: var(--muted); font-size: 13.5px; margin: 0 0 22px; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left; font-weight: 700; font-size: 13.5px;
+    padding: 0 16px 10px 0; border-bottom: 1px solid var(--rule); vertical-align: bottom;
+  }
+  tbody td { padding: 16px 16px 16px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  tbody td:last-child, thead th:last-child { padding-right: 0; }
+  .ex { font-weight: 600; }
+  .muted { color: var(--muted); }
+  .footer { margin-top: 26px; display: grid; gap: 9px; font-size: 13.5px; }
+  .footer .lbl { color: var(--accent); font-weight: 700; }
+  .stamp { margin-top: 24px; color: var(--muted); font-size: 12px; }
+  @media (max-width: 620px) {
+    body { font-size: 14px; }
+    thead { display: none; }
+    table, tbody, tr, td { display: block; width: 100%; }
+    tbody tr { border-bottom: 1px solid var(--rule); padding: 14px 0; }
+    tbody td { border: none; padding: 2px 0; }
+    tbody td::before { content: attr(data-l) "  "; color: var(--muted); font-size: 12px; }
+    tbody td.ex::before { content: ""; }
+    tbody td.ex { font-size: 16px; margin-bottom: 4px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tabs" id="tabs"></div>
+  <h1 id="title">Loading…</h1>
+  <p class="subtitle" id="subtitle"></p>
+  <table>
+    <thead>
+      <tr><th>Exercise</th><th>Weight</th><th>Sets × Target</th><th>Weight breakdown</th><th>Note</th></tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div class="footer" id="footer"></div>
+  <div class="stamp" id="stamp"></div>
+</div>
+
+<script>
+// Inline fallback so the page renders before /api/prescription loads.
+const FALLBACK = {
+  "pull": {"session":"Pull","next":true,"subtitle":"next — first Pull since May 19 → RPE 8 cap, held weights.","updated":"2026-06-14","rows":[{"exercise":"BB Incline Row (20°)","weight":"30 kg","target":"4 × 7 (6–10)","breakdown":"5 / side","note":"Rest 2 min, ramp warmup set"},{"exercise":"CG Lat Pulldown","weight":"30 kg","target":"4 × 10 (8–12)","breakdown":"bottom-up: 10 + 5 + 1.25 (=16.25 base) + 10 + 2.5 + 1.25 on top","note":"Rest 2 min"},{"exercise":"CS Incline DB Row (35°)","weight":"6.0 kg/hand","target":"3 × 10 (8–12)","breakdown":"handle + 1.25 + 0.5 + 0.25 / hand","note":"Rest 90 sec"},{"exercise":"Cable Face Pull","weight":"16.25 kg","target":"4 × 16 (15–20)","breakdown":"peel top 10 + 2.5 + 1.25 off pulldown stack","note":"Rest 60 sec, 1s squeeze"},{"exercise":"DB Hammer Curl","weight":"5.75 kg/hand","target":"3 × 10 (8–12)","breakdown":"handle + 1.25 + 0.5 / hand","note":"Rest 90 sec"},{"exercise":"Seated Incline Curl (50°)","weight":"5.25 kg/hand","target":"3 × 10 (8–12)","breakdown":"handle + 1.25 / hand","note":"Rest 60 sec, load 5.25 both sides"}],"tempo":"2s down / 1s up (1-0-2-0), all exercises (Face Pull adds 1s squeeze).","warmup":"BB Incline Row, Hevy formula + ramp set — 60 sec between warmup sets, 2 min before set 1.","plates":"2×10, 2×5, 4×2.5, 6×1.25, 2×0.5, 2×0.25","effort":"RPE 8 — leave 1–2 in the tank. Full send from the next Pull onward."},
+  "push": {"session":"Push","next":false,"subtitle":"after Pull — full send, normal progression. Weights held from re-entry; chase the tops now.","updated":"2026-06-14","rows":[{"exercise":"BB Bench Press","weight":"40 kg","target":"4 × 10 (6–10)","breakdown":"10 / side","note":"Rest 2 min"},{"exercise":"Incline DB Press (35°)","weight":"6.25 kg/hand","target":"3 × 12 (8–12)","breakdown":"handle + 1.25 + 0.5 + 0.375 + 0.125 / hand","note":"Rest 90 sec"},{"exercise":"BB OHP","weight":"22.5 kg","target":"3 × 12 (8–12)","breakdown":"1.25 / side","note":"Rest 2 min, strict — straight bar"},{"exercise":"DB Lateral Raise (65°)","weight":"3.5 kg/hand","target":"4 × 15 (12–15)","breakdown":"hold 2.5 + 0.5 + 0.375 + 0.125 / hand (no handle)","note":"Rest 60 sec, slow eccentric"},{"exercise":"EZ Skull Crusher","weight":"13.75 kg","target":"3 × 12 (8–12)","breakdown":"EZ bar + 1.25 + 0.5 + 0.125 / side","note":"Rest 90 sec, ⚠️ confirm elbow pain-free, shortened ROM"},{"exercise":"Cable Triceps Pushdown","weight":"17.5 kg","target":"3 × 12 (8–12)","breakdown":"15 + 2.5","note":"Rest 60 sec"},{"exercise":"OH DB Tricep Extension","weight":"6.25 kg/hand","target":"3 × 12 (8–12)","breakdown":"handle + 1.25 + 0.5 + 0.375 + 0.125 / hand","note":"Rest 60 sec"}],"tempo":"2s down / 1s up (1-0-2-0), all exercises.","warmup":"BB Bench Press, Hevy formula (40%×5, 60%×5, 80%×3) — 60 sec between warmup sets, 2 min before set 1.","plates":"2×10, 1×15, 2×2.5, 2×1.25, 2×0.5, 2×0.375, 2×0.125","effort":"Full send — 1–2 RIR, chase the top of every range. Progress next session (+2.5 kg bench/OHP, +0.25 kg DB, +1.25 kg pushdown) on any lift hitting all sets at top."}
+};
+
+function esc(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+
+let DATA = FALLBACK;
+let active = null;
+const PREF = ["pull","push"];
+
+function orderedKeys(d){
+  return Object.keys(d).sort((a,b)=>{
+    const an = d[a]&&d[a].next?-1:0, bn = d[b]&&d[b].next?-1:0;
+    if(an!==bn) return an-bn;
+    return PREF.indexOf(a)-PREF.indexOf(b);
+  });
+}
+function pickDefault(d){
+  const k = Object.keys(d);
+  return k.find(x=>d[x]&&d[x].next) || (k.includes("pull")?"pull":k[0]);
+}
+
+function renderTabs(){
+  const el = document.getElementById("tabs");
+  el.innerHTML = orderedKeys(DATA).map(k=>{
+    const s = DATA[k];
+    const badge = s && s.next ? '<span class="badge">NEXT</span>' : '';
+    return `<button class="tab ${k===active?"active":""}" data-k="${k}">${esc(s.session||k)}${badge}</button>`;
+  }).join("");
+  el.querySelectorAll(".tab").forEach(b=>{
+    b.onclick = ()=>{ active = b.dataset.k; renderTabs(); renderSession(DATA[active]); };
+  });
+}
+
+function renderSession(d){
+  if(!d) return;
+  document.getElementById("title").textContent = d.session || "";
+  document.getElementById("subtitle").textContent = d.subtitle || "";
+  document.getElementById("rows").innerHTML = (d.rows||[]).map(r=>`
+    <tr>
+      <td class="ex" data-l="">${esc(r.exercise)}</td>
+      <td data-l="Weight">${esc(r.weight)}</td>
+      <td data-l="Target">${esc(r.target)}</td>
+      <td class="muted" data-l="Breakdown">${esc(r.breakdown)}</td>
+      <td class="muted" data-l="Note">${esc(r.note)}</td>
+    </tr>`).join("");
+  const f = [];
+  if(d.tempo)  f.push(`<div><span class="lbl">Tempo:</span> ${esc(d.tempo)}</div>`);
+  if(d.warmup) f.push(`<div><span class="lbl">Warmup:</span> ${esc(d.warmup)}</div>`);
+  if(d.plates) f.push(`<div><span class="lbl">Plates to pull:</span> ${esc(d.plates)}</div>`);
+  if(d.effort) f.push(`<div><span class="lbl">Effort:</span> ${esc(d.effort)}</div>`);
+  document.getElementById("footer").innerHTML = f.join("");
+  document.getElementById("stamp").textContent = d.updated ? "Updated " + d.updated : "";
+}
+
+function renderAll(d){
+  DATA = d && Object.keys(d).length ? d : FALLBACK;
+  if(!active || !DATA[active]) active = pickDefault(DATA);
+  renderTabs();
+  renderSession(DATA[active]);
+}
+
+renderAll(FALLBACK);
+fetch("/api/prescription").then(r=>r.ok?r.json():Promise.reject()).then(renderAll).catch(()=>{});
+</script>
+</body>
+</html>
