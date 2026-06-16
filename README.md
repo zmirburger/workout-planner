@@ -67,13 +67,13 @@ wrangler pages dev public
 
 ```bash
 # Create the project once (skip if it already exists)
-wrangler pages project create hypertrophy-next-workout --production-branch main
+wrangler pages project create workout-planner --production-branch main
 
 # Deploy the static assets + Function
-wrangler pages deploy public --project-name hypertrophy-next-workout
+wrangler pages deploy public --project-name workout-planner
 
 # Set the secret (prompts you to paste the token; never stored in the repo)
-wrangler pages secret put NOTION_TOKEN --project-name hypertrophy-next-workout
+wrangler pages secret put NOTION_TOKEN --project-name workout-planner
 ```
 
 `NOTION_PAGE_ID` is applied from `wrangler.toml` `[vars]`. Confirm it under
