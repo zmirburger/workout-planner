@@ -55,29 +55,7 @@
   .footer { margin-top: 26px; display: grid; gap: 9px; font-size: 13.5px; }
   .footer .lbl { color: var(--accent); font-weight: 700; }
   .stamp { margin-top: 24px; color: var(--muted); font-size: 12px; }
-  details.warmup {
-    border: 1px solid var(--rule); border-radius: 6px;
-    padding: 10px 14px; margin: 0 0 22px; background: rgba(255,255,255,.02);
-  }
-  details.warmup summary {
-    cursor: pointer; font-weight: 700; font-size: 13.5px;
-    list-style: none; display: flex; align-items: center; gap: 9px;
-  }
-  details.warmup summary::-webkit-details-marker { display: none; }
-  details.warmup summary::before {
-    content: "\25B8"; color: var(--muted); font-size: 11px; transition: transform .15s;
-  }
-  details.warmup[open] summary::before { transform: rotate(90deg); }
-  .wcount { color: var(--muted); font-weight: 400; font-size: 12.5px; }
-  table.wtable { margin-top: 10px; }
-  table.wtable thead th {
-    font-size: 12px; font-weight: 700; color: var(--muted);
-    padding: 0 14px 7px 0; border-bottom: 1px solid var(--rule);
-  }
-  table.wtable tbody td { padding: 9px 14px 9px 0; border-bottom: 1px solid var(--rule); font-size: 13.5px; }
-  table.wtable tbody tr:last-child td { border-bottom: none; }
-  table.wtable tbody td.wex { font-weight: 600; }
-  table.wtable tbody td.wwt { white-space: nowrap; }
+  tr.warmup-row td.wnote { color: var(--muted); font-style: italic; }
   @media (max-width: 620px) {
     body { font-size: 14px; }
     thead { display: none; }
@@ -87,14 +65,6 @@
     tbody td::before { content: attr(data-l) "  "; color: var(--muted); font-size: 12px; }
     tbody td.ex::before { content: ""; }
     tbody td.ex { font-size: 16px; margin-bottom: 4px; }
-    table.wtable thead { display: none; }
-    table.wtable, table.wtable tbody, table.wtable tr, table.wtable td { display: block; width: 100%; }
-    table.wtable tbody tr { border-bottom: 1px solid var(--rule); padding: 10px 0; }
-    table.wtable tbody tr:last-child { border-bottom: none; }
-    table.wtable tbody td { border: none; padding: 1px 0; }
-    table.wtable tbody td::before { content: attr(data-l) "  "; color: var(--muted); font-size: 12px; }
-    table.wtable tbody td.wex::before { content: ""; }
-    table.wtable tbody td.wex { font-size: 15px; margin-bottom: 2px; }
   }
 </style>
 </head>
@@ -103,7 +73,6 @@
   <div class="tabs" id="tabs"></div>
   <h1 id="title">Loading…</h1>
   <p class="subtitle" id="subtitle"></p>
-  <details class="warmup" id="warmupBlock" open hidden></details>
   <table>
     <thead>
       <tr><th>Exercise</th><th>Weight</th><th>Sets × Target</th><th>Weight breakdown</th><th>Note</th></tr>
@@ -152,7 +121,16 @@ function renderSession(d){
   if(!d) return;
   document.getElementById("title").textContent = d.session || "";
   document.getElementById("subtitle").textContent = d.subtitle || "";
-  document.getElementById("rows").innerHTML = (d.rows||[]).map(r=>`
+  const w = Array.isArray(d.warmup_sets) ? d.warmup_sets : [];
+  const warmupRows = w.map(x=>`
+    <tr class="warmup-row">
+      <td class="ex" data-l="">${esc(x.exercise||"")}</td>
+      <td data-l="Weight">${esc(x.weight||"")}</td>
+      <td data-l="Target">1 × ${esc(x.reps||"")}</td>
+      <td class="muted" data-l="Breakdown">${esc(x.breakdown||"")}</td>
+      <td class="muted wnote" data-l="Note">Warmup</td>
+    </tr>`).join("");
+  const workingRows = (d.rows||[]).map(r=>`
     <tr>
       <td class="ex" data-l="">${esc(r.exercise)}</td>
       <td data-l="Weight">${esc(r.weight)}</td>
@@ -160,24 +138,7 @@ function renderSession(d){
       <td class="muted" data-l="Breakdown">${esc(r.breakdown)}</td>
       <td class="muted" data-l="Note">${esc(r.note)}</td>
     </tr>`).join("");
-  const w = Array.isArray(d.warmup_sets) ? d.warmup_sets : [];
-  const wb = document.getElementById("warmupBlock");
-  if(w.length){
-    wb.hidden = false;
-    wb.innerHTML = `<summary>Warmup<span class="wcount">${w.length} set${w.length>1?"s":""} · RPE ≤5</span></summary>
-      <table class="wtable">
-        <thead><tr><th>Exercise</th><th>Weight</th><th>Reps</th><th>Plates</th></tr></thead>
-        <tbody>${w.map(x=>`
-          <tr>
-            <td class="wex" data-l="">${esc(x.exercise||"")}</td>
-            <td class="wwt" data-l="Weight">${esc(x.weight||"")}</td>
-            <td data-l="Reps">${esc(x.reps||"")}</td>
-            <td class="muted" data-l="Plates">${esc(x.breakdown||"")}</td>
-          </tr>`).join("")}</tbody>
-      </table>`;
-  } else {
-    wb.hidden = true; wb.innerHTML = "";
-  }
+  document.getElementById("rows").innerHTML = warmupRows + workingRows;
   const f = [];
   if(d.tempo)  f.push(`<div><span class="lbl">Tempo:</span> ${esc(d.tempo)}</div>`);
   if(d.warmup && !w.length) f.push(`<div><span class="lbl">Warmup:</span> ${esc(d.warmup)}</div>`);
@@ -198,7 +159,6 @@ function showError(){
   document.getElementById("title").textContent = "Couldn’t load prescription";
   document.getElementById("subtitle").textContent = "Notion didn’t respond. Pull to refresh, or open the Notion page directly — do NOT guess weights.";
   document.getElementById("rows").innerHTML = "";
-  document.getElementById("warmupBlock").hidden = true;
 }
 fetch("/api/prescription?ts=" + Date.now())
   .then(r=>r.ok?r.json():Promise.reject())
