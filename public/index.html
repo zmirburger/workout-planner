@@ -122,23 +122,38 @@ function renderSession(d){
   document.getElementById("title").textContent = d.session || "";
   document.getElementById("subtitle").textContent = d.subtitle || "";
   const w = Array.isArray(d.warmup_sets) ? d.warmup_sets : [];
-  const warmupRows = w.map(x=>`
+  const baseName = s => String(s||"").split(/[\(—]/)[0].trim().toLowerCase();
+  const warmupRowHtml = x => `
     <tr class="warmup-row">
       <td class="ex" data-l="">${esc(x.exercise||"")}</td>
       <td data-l="Weight">${esc(x.weight||"")}</td>
       <td data-l="Target">1 × ${esc(x.reps||"")}</td>
       <td class="muted" data-l="Breakdown">${esc(x.breakdown||"")}</td>
       <td class="muted wnote" data-l="Note">Warmup</td>
-    </tr>`).join("");
-  const workingRows = (d.rows||[]).map(r=>`
+    </tr>`;
+  const workingRowHtml = r => `
     <tr>
       <td class="ex" data-l="">${esc(r.exercise)}</td>
       <td data-l="Weight">${esc(r.weight)}</td>
       <td data-l="Target">${esc(r.target)}</td>
       <td class="muted" data-l="Breakdown">${esc(r.breakdown)}</td>
       <td class="muted" data-l="Note">${esc(r.note)}</td>
-    </tr>`).join("");
-  document.getElementById("rows").innerHTML = warmupRows + workingRows;
+    </tr>`;
+  const usedWarmup = new Set();
+  let rowsHtml = (d.rows||[]).map(r=>{
+    const rb = baseName(r.exercise);
+    let matched = "";
+    w.forEach((x,i)=>{
+      if(!usedWarmup.has(i) && baseName(x.exercise)===rb){
+        usedWarmup.add(i);
+        matched += warmupRowHtml(x);
+      }
+    });
+    return matched + workingRowHtml(r);
+  }).join("");
+  let leftoverWarmup = "";
+  w.forEach((x,i)=>{ if(!usedWarmup.has(i)) leftoverWarmup += warmupRowHtml(x); });
+  document.getElementById("rows").innerHTML = leftoverWarmup + rowsHtml;
   const f = [];
   if(d.tempo)  f.push(`<div><span class="lbl">Tempo:</span> ${esc(d.tempo)}</div>`);
   if(d.warmup && !w.length) f.push(`<div><span class="lbl">Warmup:</span> ${esc(d.warmup)}</div>`);
