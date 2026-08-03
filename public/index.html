@@ -91,29 +91,34 @@ function esc(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">
 
 let DATA = FALLBACK;
 let active = null;
-const PREF = ["pull","push"];
 
-function orderedKeys(d){
-  return Object.keys(d).sort((a,b)=>{
-    const an = d[a]&&d[a].next?-1:0, bn = d[b]&&d[b].next?-1:0;
-    if(an!==bn) return an-bn;
-    return PREF.indexOf(a)-PREF.indexOf(b);
-  });
-}
-function pickDefault(d){
-  const k = Object.keys(d);
-  return k.find(x=>d[x]&&d[x].next) || (k.includes("pull")?"pull":k[0]);
+// Picks the session whose own `next` flag is true — never by array position or
+// hardcoded session name/order, and works for any number of session tabs.
+function pickNextKey(d){
+  const keys = Object.keys(d);
+  const nextKeys = keys.filter(k=>d[k] && d[k].next === true);
+  if(nextKeys.length === 1) return nextKeys[0];
+  if(nextKeys.length === 0){
+    console.warn("[prescription] no session has next:true; falling back to first session:", keys[0]);
+  } else {
+    console.warn("[prescription] multiple sessions marked next:true:", nextKeys, "— falling back to", nextKeys[0]);
+  }
+  return nextKeys[0] || keys[0];
 }
 
-function renderTabs(){
+function orderedKeys(d, nextKey){
+  return Object.keys(d).sort((a,b)=>(a===nextKey?-1:0)-(b===nextKey?-1:0));
+}
+
+function renderTabs(nextKey){
   const el = document.getElementById("tabs");
-  el.innerHTML = orderedKeys(DATA).map(k=>{
+  el.innerHTML = orderedKeys(DATA, nextKey).map(k=>{
     const s = DATA[k];
-    const badge = s && s.next ? '<span class="badge">NEXT</span>' : '';
+    const badge = k===nextKey ? '<span class="badge">NEXT</span>' : '';
     return `<button class="tab ${k===active?"active":""}" data-k="${k}">${esc(s.session||k)}${badge}</button>`;
   }).join("");
   el.querySelectorAll(".tab").forEach(b=>{
-    b.onclick = ()=>{ active = b.dataset.k; renderTabs(); renderSession(DATA[active]); };
+    b.onclick = ()=>{ active = b.dataset.k; renderTabs(nextKey); renderSession(DATA[active]); };
   });
 }
 
@@ -165,8 +170,9 @@ function renderSession(d){
 
 function renderAll(d){
   DATA = d && Object.keys(d).length ? d : FALLBACK;
-  if(!active || !DATA[active]) active = pickDefault(DATA);
-  renderTabs();
+  const nextKey = pickNextKey(DATA);
+  if(!active || !DATA[active]) active = nextKey;
+  renderTabs(nextKey);
   renderSession(DATA[active]);
 }
 
@@ -175,7 +181,7 @@ function showError(){
   document.getElementById("subtitle").textContent = "Notion didn’t respond. Pull to refresh, or open the Notion page directly — do NOT guess weights.";
   document.getElementById("rows").innerHTML = "";
 }
-fetch("/api/prescription?ts=" + Date.now())
+fetch("/api/prescription?nocache=" + Date.now())
   .then(r=>r.ok?r.json():Promise.reject())
   .then(d=>{ if(d && Object.keys(d).length) renderAll(d); else showError(); })
   .catch(showError);
