@@ -56,6 +56,58 @@
   .footer .lbl { color: var(--accent); font-weight: 700; }
   .stamp { margin-top: 24px; color: var(--muted); font-size: 12px; }
   tr.warmup-row td.wnote { color: var(--muted); font-style: italic; }
+
+  .ex.has-img {
+    cursor: pointer;
+    text-decoration: underline dotted color-mix(in srgb, var(--muted) 70%, transparent);
+    text-underline-offset: 3px;
+  }
+  .ex.has-img:hover { color: var(--accent); }
+  .ex.has-img::after {
+    content: " ↗";
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: rgba(0,0,0,.78);
+    padding: 24px 16px;
+    align-items: center;
+    justify-content: center;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox-card {
+    background: var(--bg);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    max-width: min(720px, 100%);
+    max-height: 92vh;
+    overflow: auto;
+    padding: 16px 16px 14px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.45);
+  }
+  .lightbox-card h2 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 18px;
+    margin: 0 0 10px;
+    font-weight: 700;
+  }
+  .lightbox-card img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 6px;
+    background: #111;
+  }
+  .lightbox-hint {
+    margin: 10px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+  }
   @media (max-width: 620px) {
     body { font-size: 14px; }
     thead { display: none; }
@@ -83,6 +135,15 @@
   <div class="stamp" id="stamp"></div>
 </div>
 
+
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-labelledby="lightbox-title" hidden>
+  <div class="lightbox-card">
+    <h2 id="lightbox-title"></h2>
+    <img id="lightbox-img" alt="">
+    <p class="lightbox-hint">Tap outside or press Esc to close</p>
+  </div>
+</div>
+
 <script>
 // No inline prescription fallback: showing stale weights in the gym is worse than showing none.
 const FALLBACK = {};
@@ -91,6 +152,57 @@ function esc(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">
 
 let DATA = FALLBACK;
 let active = null;
+
+// Optional form diagrams. Keys are normalized exercise names (lowercase, no stars/emoji).
+// Prefer row.image from Notion JSON when present; else fall back to this map.
+const EXERCISE_IMAGES = {
+  "high-cable 2-arm row": "/exercises/high-cable-2-arm-row.jpg",
+  "high cable 2-arm row": "/exercises/high-cable-2-arm-row.jpg",
+  "seated cable row": "/exercises/high-cable-2-arm-row.jpg"
+};
+
+function normalizeEx(name){
+  return String(name||"")
+    .replace(/[⭐*]/g,"")
+    .replace(/\s+/g," ")
+    .trim()
+    .toLowerCase()
+    .replace(/[—–-]+/g,"-");
+}
+
+function imageFor(exercise, rowImage){
+  if(rowImage) return rowImage;
+  const n = normalizeEx(exercise);
+  if(EXERCISE_IMAGES[n]) return EXERCISE_IMAGES[n];
+  // fuzzy: strip parentheticals already partly handled; try startsWith keys
+  for(const [k,v] of Object.entries(EXERCISE_IMAGES)){
+    if(n.startsWith(k) || k.startsWith(n.split("(")[0].trim())) return v;
+  }
+  return null;
+}
+
+function openLightbox(title, src){
+  const box = document.getElementById("lightbox");
+  document.getElementById("lightbox-title").textContent = title;
+  const img = document.getElementById("lightbox-img");
+  img.src = src;
+  img.alt = title + " form diagram";
+  box.hidden = false;
+  box.classList.add("open");
+}
+function closeLightbox(){
+  const box = document.getElementById("lightbox");
+  box.classList.remove("open");
+  box.hidden = true;
+  document.getElementById("lightbox-img").removeAttribute("src");
+}
+document.getElementById("lightbox").addEventListener("click", e=>{
+  if(e.target.id === "lightbox") closeLightbox();
+});
+document.addEventListener("keydown", e=>{
+  if(e.key === "Escape") closeLightbox();
+});
+
 
 // Picks the session whose own `next` flag is true — never by array position or
 // hardcoded session name/order, and works for any number of session tabs.
@@ -136,14 +248,19 @@ function renderSession(d){
       <td class="muted" data-l="Breakdown">${esc(x.breakdown||"")}</td>
       <td class="muted wnote" data-l="Note">Warmup</td>
     </tr>`;
-  const workingRowHtml = r => `
+  const workingRowHtml = r => {
+    const img = imageFor(r.exercise, r.image);
+    const exClass = img ? "ex has-img" : "ex";
+    const dataImg = img ? ` data-img="${esc(img)}" data-title="${esc(r.exercise)}"` : "";
+    return `
     <tr>
-      <td class="ex" data-l="">${esc(r.exercise)}</td>
+      <td class="${exClass}" data-l=""${dataImg}>${esc(r.exercise)}</td>
       <td data-l="Weight">${esc(r.weight)}</td>
       <td data-l="Target">${esc(r.target)}</td>
       <td class="muted" data-l="Breakdown">${esc(r.breakdown)}</td>
       <td class="muted" data-l="Note">${esc(r.note)}</td>
     </tr>`;
+  };
   const usedWarmup = new Set();
   let rowsHtml = (d.rows||[]).map(r=>{
     const rb = baseName(r.exercise);
@@ -159,6 +276,9 @@ function renderSession(d){
   let leftoverWarmup = "";
   w.forEach((x,i)=>{ if(!usedWarmup.has(i)) leftoverWarmup += warmupRowHtml(x); });
   document.getElementById("rows").innerHTML = leftoverWarmup + rowsHtml;
+  document.querySelectorAll("#rows .ex.has-img").forEach(el=>{
+    el.addEventListener("click", ()=> openLightbox(el.dataset.title || el.textContent, el.dataset.img));
+  });
   const f = [];
   if(d.tempo)  f.push(`<div><span class="lbl">Tempo:</span> ${esc(d.tempo)}</div>`);
   if(d.warmup && !w.length) f.push(`<div><span class="lbl">Warmup:</span> ${esc(d.warmup)}</div>`);
