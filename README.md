@@ -33,7 +33,7 @@ Cloudflare edge for 5 minutes.
 route sends it to the `bot-hub` Worker (`cowork/bot_hub`, `COACH_HOST` in
 `src/index.js`), which serves its chat UI locked to the Workout Planner bot:
 PIN login, live Notion + `/api/prescription` context, and tap-to-save appends to
-"Hypertrophy Coach — Data". The page's **Coach · Log** button links there. Nothing
+"Hypertrophy Coach — Data". The page's **Next Workout | Coach** switch links there (and back). Nothing
 in this repo implements it — change the chat in `bot_hub`.
 
 ## Environment variables
