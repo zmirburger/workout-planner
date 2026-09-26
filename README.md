@@ -27,6 +27,15 @@ block whose language is `json` (or unset), parses each one, and indexes it by it
 lowercased `session` field (e.g. `"Pull"` → `pull`). Responses are cached at the
 Cloudflare edge for 5 minutes.
 
+### Coach chat (`/coach`)
+
+`workout.zmirburger.com/coach*` is **not** served by this Pages project. A Worker
+route sends it to the `bot-hub` Worker (`cowork/bot_hub`, `COACH_HOST` in
+`src/index.js`), which serves its chat UI locked to the Workout Planner bot:
+PIN login, live Notion + `/api/prescription` context, and tap-to-save appends to
+"Hypertrophy Coach — Data". The page's **Coach · Log** button links there. Nothing
+in this repo implements it — change the chat in `bot_hub`.
+
 ## Environment variables
 
 The Function needs two variables on the Cloudflare Pages project:

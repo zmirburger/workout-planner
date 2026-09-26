@@ -55,6 +55,12 @@
   .footer { margin-top: 26px; display: grid; gap: 9px; font-size: 13.5px; }
   .footer .lbl { color: var(--accent); font-weight: 700; }
   .stamp { margin-top: 24px; color: var(--muted); font-size: 12px; }
+  .topbar { display: flex; justify-content: flex-end; margin: -12px 0 10px; }
+  .coach-link {
+    color: var(--fg); text-decoration: none; font-size: 13px; font-weight: 600;
+    border: 1px solid var(--rule); border-radius: 6px; padding: 6px 12px;
+  }
+  .coach-link:hover { border-color: var(--muted); }
   tr.warmup-row td.wnote { color: var(--muted); font-style: italic; }
 
   .ex.has-img {
@@ -122,6 +128,8 @@
 </head>
 <body>
 <div class="wrap">
+  <!-- /coach* is routed to the bot-hub Worker (Workout Coach chat: log, progress, update details). -->
+  <div class="topbar"><a class="coach-link" href="/coach/">💬 Coach · Log</a></div>
   <div class="tabs" id="tabs"></div>
   <h1 id="title">Loading…</h1>
   <p class="subtitle" id="subtitle"></p>
