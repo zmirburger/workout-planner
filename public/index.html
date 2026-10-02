@@ -55,16 +55,53 @@
   .footer { margin-top: 26px; display: grid; gap: 9px; font-size: 13.5px; }
   .footer .lbl { color: var(--accent); font-weight: 700; }
   .stamp { margin-top: 24px; color: var(--muted); font-size: 12px; }
-  /* Next Workout | Coach switch — mirrored in bot_hub coach mode (.site-switch). */
+  /* Next Workout | Coach switch — tabbed navigation */
   .site-switch {
     display: inline-flex; margin: -12px 0 18px; padding: 2px;
     border: 1px solid var(--rule); border-radius: 8px;
+    background: transparent;
   }
-  .site-switch a {
+  .site-switch a, .site-switch button {
+    background: none; border: none; font: inherit;
     color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 600;
-    padding: 6px 12px; border-radius: 6px; white-space: nowrap;
+    padding: 6px 12px; border-radius: 6px; white-space: nowrap; cursor: pointer;
   }
-  .site-switch a.active { background: var(--rule); color: var(--fg); }
+  .site-switch a.active, .site-switch button.active { background: var(--rule); color: var(--fg); }
+  #pane-coach {
+    width: 100%;
+    height: calc(100dvh - 90px);
+    display: flex;
+  }
+  #coach-frame {
+    width: 100%;
+    height: 100%;
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    background: #0d0f12;
+  }
+  body.coach-mode {
+    padding-bottom: 10px;
+    overflow: hidden;
+  }
+  @media (max-width: 620px) {
+    body.coach-mode {
+      padding: 10px 10px 0;
+      height: 100dvh;
+      overflow: hidden;
+    }
+    body.coach-mode .wrap {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    body.coach-mode #pane-coach {
+      flex: 1;
+      height: auto;
+    }
+    body.coach-mode #coach-frame {
+      border-radius: 8px;
+    }
+  }
   tr.warmup-row td.wnote { color: var(--muted); font-style: italic; }
 
   .ex.has-img {
@@ -131,20 +168,30 @@
 </style>
 </head>
 <body>
-<div class="wrap">
-  <!-- /coach* is routed to the bot-hub Worker (Workout Coach chat: log, progress, update details). -->
-  <nav class="site-switch"><a class="active" aria-current="page">🏋️ Next Workout</a><a href="/coach/">💬 Coach</a></nav>
-  <div class="tabs" id="tabs"></div>
-  <h1 id="title">Loading…</h1>
-  <p class="subtitle" id="subtitle"></p>
-  <table>
-    <thead>
-      <tr><th>Exercise</th><th>Weight</th><th>Sets × Target</th><th>Weight breakdown</th><th>Note</th></tr>
-    </thead>
-    <tbody id="rows"></tbody>
-  </table>
-  <div class="footer" id="footer"></div>
-  <div class="stamp" id="stamp"></div>
+<div class="wrap" id="main-wrap">
+  <!-- Next Workout | Coach switch -->
+  <nav class="site-switch">
+    <button type="button" class="active" id="tab-btn-workout" aria-current="page">🏋️ Next Workout</button>
+    <button type="button" id="tab-btn-coach">💬 Coach</button>
+  </nav>
+
+  <div id="pane-workout">
+    <div class="tabs" id="tabs"></div>
+    <h1 id="title">Loading…</h1>
+    <p class="subtitle" id="subtitle"></p>
+    <table>
+      <thead>
+        <tr><th>Exercise</th><th>Weight</th><th>Sets × Target</th><th>Weight breakdown</th><th>Note</th></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="footer" id="footer"></div>
+    <div class="stamp" id="stamp"></div>
+  </div>
+
+  <div id="pane-coach" style="display: none;">
+    <iframe id="coach-frame" title="Coach Chat" allow="clipboard-read; clipboard-write; camera"></iframe>
+  </div>
 </div>
 
 
@@ -317,6 +364,46 @@ fetch("/api/prescription?nocache=" + Date.now())
   .then(r=>r.ok?r.json():Promise.reject())
   .then(d=>{ if(d && Object.keys(d).length) renderAll(d); else showError(); })
   .catch(showError);
+
+function setAppTab(tab){
+  const isCoach = tab === "coach";
+  const btnWorkout = document.getElementById("tab-btn-workout");
+  const btnCoach = document.getElementById("tab-btn-coach");
+  const paneWorkout = document.getElementById("pane-workout");
+  const paneCoach = document.getElementById("pane-coach");
+  if(!btnWorkout || !btnCoach) return;
+
+  btnWorkout.classList.toggle("active", !isCoach);
+  btnCoach.classList.toggle("active", isCoach);
+  paneWorkout.style.display = isCoach ? "none" : "";
+  paneCoach.style.display = isCoach ? "flex" : "none";
+  document.body.classList.toggle("coach-mode", isCoach);
+
+  if(isCoach){
+    const frame = document.getElementById("coach-frame");
+    if(!frame.src || frame.src === "about:blank" || frame.src.endsWith(window.location.host + "/")){
+      frame.src = "/coach/";
+    }
+    history.replaceState(null, "", "#coach");
+  } else {
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+  }
+}
+
+document.getElementById("tab-btn-workout").addEventListener("click", () => setAppTab("workout"));
+document.getElementById("tab-btn-coach").addEventListener("click", () => setAppTab("coach"));
+
+window.addEventListener("message", (e) => {
+  if(e.data && e.data.tab === "workout") setAppTab("workout");
+});
+
+window.addEventListener("hashchange", () => {
+  setAppTab(window.location.hash === "#coach" ? "coach" : "workout");
+});
+
+if(window.location.hash === "#coach"){
+  setAppTab("coach");
+}
 </script>
 </body>
 </html>
