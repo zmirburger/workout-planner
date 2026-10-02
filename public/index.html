@@ -251,6 +251,72 @@
     margin-right: 4px;
   }
 
+  /* Superset banner & bracket styles */
+  .superset-header-row td {
+    padding: 18px 0 6px !important;
+    border-bottom: none !important;
+  }
+  .superset-header-row td::before {
+    display: none !important;
+  }
+  .superset-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(168, 85, 247, 0.08);
+    border: 1px solid rgba(168, 85, 247, 0.35);
+    border-left: 4px solid #a855f7;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  .superset-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    background: #a855f7;
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .superset-title {
+    font-weight: 600;
+    color: #e9d5ff;
+    line-height: 1.35;
+  }
+  tbody tr.row-superset td {
+    background: rgba(168, 85, 247, 0.025);
+  }
+  tbody tr.row-superset td:first-child {
+    border-left: 3px solid #a855f7;
+    padding-left: 12px;
+  }
+  tbody tr.row-superset-first td {
+    border-top: 1px solid rgba(168, 85, 247, 0.25);
+  }
+  tbody tr.row-superset-second td {
+    border-bottom: 2px solid rgba(168, 85, 247, 0.4);
+  }
+  .pill-ss {
+    background: rgba(168, 85, 247, 0.2);
+    color: #d8b4fe;
+    border: 1px solid rgba(168, 85, 247, 0.45);
+  }
+  .ss-tag {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    background: rgba(168, 85, 247, 0.2);
+    color: #d8b4fe;
+    border: 1px solid rgba(168, 85, 247, 0.45);
+    padding: 2px 6px;
+    border-radius: 4px;
+    vertical-align: middle;
+    margin-left: 6px;
+    display: inline-block;
+  }
+
   .ex.has-img {
     cursor: pointer;
     text-decoration: underline dotted color-mix(in srgb, var(--muted) 70%, transparent);
@@ -333,6 +399,32 @@
     .warmup-mini-table .wm-reps { width: auto; font-weight: 600; font-size: 13.5px; }
     .warmup-mini-table .wm-bd { width: auto; font-size: 12.5px; }
     .warmup-mini-table .wm-note { width: 100%; font-size: 12px; }
+    tbody tr.row-superset {
+      border-left: 3px solid #a855f7 !important;
+      padding-left: 12px !important;
+      background: rgba(168, 85, 247, 0.025);
+      margin: 8px 0 !important;
+      border-radius: 0 8px 8px 0;
+    }
+    tbody tr.row-superset td:first-child {
+      border-left: none !important;
+      padding-left: 0 !important;
+    }
+    tbody tr.superset-header-row {
+      border-bottom: none !important;
+      padding: 12px 0 2px !important;
+    }
+    tbody tr.superset-header-row td {
+      padding: 0 !important;
+    }
+    tbody tr.superset-header-row td::before {
+      display: none !important;
+    }
+    .superset-banner {
+      padding: 7px 10px;
+      font-size: 12px;
+      gap: 8px;
+    }
   }
 </style>
 </head>
@@ -462,9 +554,17 @@ function renderTabs(nextKey){
   });
 }
 
+function cleanExName(name) {
+  return String(name || "").replace(/[⭐*]/g, "").trim();
+}
+
 function parseNote(raw) {
   if (!raw || typeof raw !== "string") return null;
   let text = raw.trim();
+
+  // Strip SS cue fragments so they do not duplicate the banner/badge
+  text = text.replace(/\bSS(?:\s+with)?\s+[A-Za-z\s]+?(?=[.,;—–-]|$)/gi, "");
+  text = text.replace(/\bsuperset(?:\s+with)?\s+[A-Za-z\s]+?(?=[.,;—–-]|$)/gi, "");
 
   let rest = "";
   if (text.match(/Rest\s+\d+/i) || text.match(/\d+\s*(?:min|sec)\s+rest/i)) {
@@ -518,16 +618,18 @@ function parseNote(raw) {
   return { rest, status, statusType, tags, historyItems, cues, raw };
 }
 
-function renderNoteHtml(raw) {
-  if (!raw) return "";
+function renderNoteHtml(raw, ssInfo) {
+  if (!raw && !ssInfo) return "";
   const p = parseNote(raw);
-  if (!p) return "";
   const badges = [];
-  if (p.rest) badges.push(`<span class="note-pill pill-rest">⏱️ ${esc(p.rest)}</span>`);
-  if (p.status) badges.push(`<span class="note-pill pill-status pill-${esc(p.statusType)}">${esc(p.status)}</span>`);
-  (p.tags || []).forEach(t => badges.push(`<span class="note-pill pill-tag">${esc(t)}</span>`));
+  if (ssInfo) {
+    badges.push(`<span class="note-pill pill-ss">⚡ ${esc(ssInfo.part)} ⇄ ${esc(cleanExName(ssInfo.partner))}</span>`);
+  }
+  if (p && p.rest) badges.push(`<span class="note-pill pill-rest">⏱️ ${esc(p.rest)}</span>`);
+  if (p && p.status) badges.push(`<span class="note-pill pill-status pill-${esc(p.statusType)}">${esc(p.status)}</span>`);
+  if (p) (p.tags || []).forEach(t => badges.push(`<span class="note-pill pill-tag">${esc(t)}</span>`));
 
-  if (!badges.length && !p.cues.length && !p.historyItems.length) {
+  if (!badges.length && (!p || (!p.cues.length && !p.historyItems.length))) {
     return `<div class="note-card"><div class="note-card-text">${esc(raw)}</div></div>`;
   }
 
@@ -535,10 +637,10 @@ function renderNoteHtml(raw) {
   if (badges.length) {
     out += `<div class="note-card-badges">${badges.join(" ")}</div>`;
   }
-  if (p.cues.length) {
+  if (p && p.cues.length) {
     out += `<ul class="note-card-cues">` + p.cues.map(c => `<li>${esc(c)}</li>`).join("") + `</ul>`;
   }
-  if (p.historyItems.length) {
+  if (p && p.historyItems.length) {
     out += `<div class="note-card-history"><span class="lbl-hist">📊</span> ${esc(p.historyItems.join(" · "))}</div>`;
   }
   out += `</div>`;
@@ -585,21 +687,96 @@ function renderSession(d){
         </td>
       </tr>`;
   };
-  const workingRowHtml = r => {
+  const rows = d.rows || [];
+  const sessionSuperset = d.superset || "";
+  const supersetPairs = [];
+  const usedSS = new Set();
+
+  for (let i = 0; i < rows.length; i++) {
+    if (usedSS.has(i)) continue;
+    const r = rows[i];
+    const m = String(r.note || "").match(/\bSS(?:\s+with)?\s+([A-Za-z\s]+?)(?=[.,;—–-]|$)/i) ||
+              String(r.note || "").match(/\bsuperset(?:\s+with)?\s+([A-Za-z\s]+?)(?=[.,;—–-]|$)/i);
+    if (m) {
+      const target = m[1].trim().toLowerCase();
+      for (let j = 0; j < rows.length; j++) {
+        if (i !== j && !usedSS.has(j) && rows[j].exercise.toLowerCase().includes(target)) {
+          usedSS.add(i);
+          usedSS.add(j);
+          const firstIdx = Math.min(i, j);
+          const secondIdx = Math.max(i, j);
+          supersetPairs.push({
+            firstIdx,
+            secondIdx,
+            desc: (sessionSuperset && !/^none/i.test(sessionSuperset)) ? sessionSuperset : `Superset: ${cleanExName(rows[firstIdx].exercise)} + ${cleanExName(rows[secondIdx].exercise)}`
+          });
+          break;
+        }
+      }
+    }
+  }
+
+  if (supersetPairs.length === 0 && sessionSuperset && !/^none/i.test(sessionSuperset)) {
+    const firstPart = sessionSuperset.split(/[,—–-]/)[0];
+    const exParts = firstPart.split("+").map(s => s.trim().toLowerCase());
+    if (exParts.length === 2) {
+      let idx0 = rows.findIndex(r => r.exercise.toLowerCase().includes(exParts[0]));
+      let idx1 = rows.findIndex(r => r.exercise.toLowerCase().includes(exParts[1]));
+      if (idx0 !== -1 && idx1 !== -1 && idx0 !== idx1) {
+        supersetPairs.push({
+          firstIdx: Math.min(idx0, idx1),
+          secondIdx: Math.max(idx0, idx1),
+          desc: sessionSuperset
+        });
+      }
+    }
+  }
+
+  const workingRowHtml = (r, idx) => {
     const img = imageFor(r.exercise, r.image);
     const exClass = img ? "ex has-img" : "ex";
     const dataImg = img ? ` data-img="${esc(img)}" data-title="${esc(r.exercise)}"` : "";
-    return `
-    <tr>
-      <td class="${exClass}" data-l=""${dataImg}>${esc(r.exercise)}</td>
+
+    const pair = supersetPairs.find(p => p.firstIdx === idx || p.secondIdx === idx);
+    let rowClass = "";
+    let ssInfo = null;
+    let headerRow = "";
+
+    if (pair) {
+      const isFirst = pair.firstIdx === idx;
+      rowClass = isFirst ? "row-superset row-superset-first" : "row-superset row-superset-second";
+      const partnerIdx = isFirst ? pair.secondIdx : pair.firstIdx;
+      ssInfo = {
+        part: isFirst ? "Part 1/2" : "Part 2/2",
+        partner: rows[partnerIdx].exercise
+      };
+      if (isFirst) {
+        headerRow = `
+        <tr class="superset-header-row">
+          <td colspan="5">
+            <div class="superset-banner">
+              <span class="superset-badge">⚡ SUPERSET PAIR</span>
+              <span class="superset-title">${esc(pair.desc)}</span>
+            </div>
+          </td>
+        </tr>`;
+      }
+    }
+
+    const trClass = rowClass ? ` class="${rowClass}"` : "";
+    const ssTag = ssInfo ? ` <span class="ss-tag">${esc(ssInfo.part.replace("Part ", "SS "))}</span>` : "";
+
+    return headerRow + `
+    <tr${trClass}>
+      <td class="${exClass}" data-l=""${dataImg}>${esc(r.exercise)}${ssTag}</td>
       <td data-l="Weight">${esc(r.weight)}</td>
       <td data-l="Target">${esc(r.target)}</td>
       <td class="muted" data-l="Breakdown">${esc(r.breakdown)}</td>
-      <td data-l="Note">${renderNoteHtml(r.note)}</td>
+      <td data-l="Note">${renderNoteHtml(r.note, ssInfo)}</td>
     </tr>`;
   };
   const usedWarmup = new Set();
-  let rowsHtml = (d.rows||[]).map(r=>{
+  let rowsHtml = rows.map((r, idx)=>{
     const rb = baseName(r.exercise);
     const matchedSets = [];
     w.forEach((x,i)=>{
@@ -608,7 +785,7 @@ function renderSession(d){
         matchedSets.push(x);
       }
     });
-    return (matchedSets.length ? renderWarmupCard(matchedSets) : "") + workingRowHtml(r);
+    return (matchedSets.length ? renderWarmupCard(matchedSets) : "") + workingRowHtml(r, idx);
   }).join("");
   const leftoverGroups = [];
   w.forEach((x,i)=>{
