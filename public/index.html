@@ -101,10 +101,78 @@
     body.coach-mode #coach-frame {
       border-radius: 8px;
     }
+  .warmup-card-row td {
+    padding: 8px 0 14px;
+    border-bottom: 1px dashed var(--rule);
   }
-  tr.warmup-row td.wnote { color: var(--muted); font-style: italic; }
-
-  .ex.has-img {
+  .warmup-card-row td::before {
+    display: none !important;
+  }
+  .warmup-card {
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid var(--rule);
+    border-left: 3px solid #eab308;
+    border-radius: 8px;
+    padding: 10px 14px 12px;
+    margin: 4px 0 6px;
+  }
+  .warmup-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .warmup-badge {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    background: #eab308;
+    color: #111;
+    padding: 2px 5px;
+    border-radius: 3px;
+  }
+  .warmup-title {
+    font-weight: 700;
+    color: var(--fg);
+  }
+  .warmup-count {
+    color: var(--muted);
+    font-size: 11.5px;
+    margin-left: auto;
+  }
+  .warmup-mini-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .warmup-mini-table td {
+    padding: 4px 12px 4px 0 !important;
+    border: none !important;
+    vertical-align: baseline;
+    display: table-cell !important;
+    width: auto !important;
+  }
+  .warmup-mini-table td::before {
+    display: none !important;
+  }
+  .warmup-mini-table .wm-wt {
+    font-weight: 600;
+    color: var(--fg);
+    white-space: nowrap;
+    width: 22%;
+  }
+  .warmup-mini-table .wm-reps {
+    color: var(--accent);
+    white-space: nowrap;
+    width: 16%;
+  }
+  .warmup-mini-table .wm-bd {
+    width: 24%;
+  }
+  .warmup-mini-table .wm-note {
+    font-style: italic;
+  }
     cursor: pointer;
     text-decoration: underline dotted color-mix(in srgb, var(--muted) 70%, transparent);
     text-underline-offset: 3px;
@@ -164,6 +232,26 @@
     tbody td::before { content: attr(data-l) "  "; color: var(--muted); font-size: 12px; }
     tbody td.ex::before { content: ""; }
     tbody td.ex { font-size: 16px; margin-bottom: 4px; }
+    tbody tr.warmup-card-row { border-bottom: none; padding: 4px 0 8px; }
+    tbody tr.warmup-card-row td { padding: 0; }
+    tbody tr.warmup-card-row td::before { display: none !important; }
+    .warmup-mini-table tr {
+      display: flex !important;
+      flex-wrap: wrap;
+      gap: 3px 10px;
+      padding: 6px 0 !important;
+      border-bottom: 1px dotted rgba(255, 255, 255, 0.08) !important;
+    }
+    .warmup-mini-table tr:last-child {
+      border-bottom: none !important;
+    }
+    .warmup-mini-table td {
+      padding: 0 !important;
+    }
+    .warmup-mini-table .wm-wt { width: auto; font-size: 13.5px; }
+    .warmup-mini-table .wm-reps { width: auto; font-weight: 600; font-size: 13.5px; }
+    .warmup-mini-table .wm-bd { width: auto; font-size: 12.5px; }
+    .warmup-mini-table .wm-note { width: 100%; font-size: 12px; }
   }
 </style>
 </head>
@@ -299,14 +387,40 @@ function renderSession(d){
   document.getElementById("subtitle").textContent = d.subtitle || "";
   const w = Array.isArray(d.warmup_sets) ? d.warmup_sets : [];
   const baseName = s => String(s||"").split(/[\(—]/)[0].trim().toLowerCase();
-  const warmupRowHtml = x => `
-    <tr class="warmup-row">
-      <td class="ex" data-l="">${esc(x.exercise||"")}</td>
-      <td data-l="Weight">${esc(x.weight||"")}</td>
-      <td data-l="Target">1 × ${esc(x.reps||"")}</td>
-      <td class="muted" data-l="Breakdown">${esc(x.breakdown||"")}</td>
-      <td class="muted wnote" data-l="Note">Warmup</td>
-    </tr>`;
+  const renderWarmupCard = sets => {
+    if (!sets || !sets.length) return "";
+    const primaryName = sets[0].exercise || "Warmup";
+    return `
+      <tr class="warmup-card-row">
+        <td colspan="5">
+          <div class="warmup-card">
+            <div class="warmup-card-header">
+              <span class="warmup-badge">WARMUP RAMP</span>
+              <span class="warmup-title">${esc(primaryName)}</span>
+              <span class="warmup-count">${sets.length} ${sets.length === 1 ? 'set' : 'sets'}</span>
+            </div>
+            <table class="warmup-mini-table">
+              <tbody>
+                ${sets.map(s => {
+                  const noteParts = [];
+                  if (s.note && s.note !== "Warmup") noteParts.push(s.note);
+                  if (s.rest && s.rest !== "0") noteParts.push(s.rest);
+                  const noteText = noteParts.join(" · ");
+                  return `
+                    <tr>
+                      <td class="wm-wt">${esc(s.weight || "—")}</td>
+                      <td class="wm-reps">1 × ${esc(s.reps || "")}</td>
+                      <td class="wm-bd muted">${esc(s.breakdown && s.breakdown !== "-" ? s.breakdown : "")}</td>
+                      <td class="wm-note muted">${esc(noteText)}</td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+        </td>
+      </tr>`;
+  };
   const workingRowHtml = r => {
     const img = imageFor(r.exercise, r.image);
     const exClass = img ? "ex has-img" : "ex";
@@ -323,18 +437,29 @@ function renderSession(d){
   const usedWarmup = new Set();
   let rowsHtml = (d.rows||[]).map(r=>{
     const rb = baseName(r.exercise);
-    let matched = "";
+    const matchedSets = [];
     w.forEach((x,i)=>{
       if(!usedWarmup.has(i) && baseName(x.exercise)===rb){
         usedWarmup.add(i);
-        matched += warmupRowHtml(x);
+        matchedSets.push(x);
       }
     });
-    return matched + workingRowHtml(r);
+    return (matchedSets.length ? renderWarmupCard(matchedSets) : "") + workingRowHtml(r);
   }).join("");
-  let leftoverWarmup = "";
-  w.forEach((x,i)=>{ if(!usedWarmup.has(i)) leftoverWarmup += warmupRowHtml(x); });
-  document.getElementById("rows").innerHTML = leftoverWarmup + rowsHtml;
+  const leftoverGroups = [];
+  w.forEach((x,i)=>{
+    if(!usedWarmup.has(i)){
+      const bn = baseName(x.exercise);
+      let g = leftoverGroups.find(group => group.bn === bn);
+      if(!g){
+        g = { bn, sets: [] };
+        leftoverGroups.push(g);
+      }
+      g.sets.push(x);
+    }
+  });
+  const leftoverHtml = leftoverGroups.map(g => renderWarmupCard(g.sets)).join("");
+  document.getElementById("rows").innerHTML = leftoverHtml + rowsHtml;
   document.querySelectorAll("#rows .ex.has-img").forEach(el=>{
     el.addEventListener("click", ()=> openLightbox(el.dataset.title || el.textContent, el.dataset.img));
   });
