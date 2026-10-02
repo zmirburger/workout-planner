@@ -101,6 +101,7 @@
     body.coach-mode #coach-frame {
       border-radius: 8px;
     }
+  }
   .warmup-card-row td {
     padding: 8px 0 14px;
     border-bottom: 1px dashed var(--rule);
@@ -173,6 +174,84 @@
   .warmup-mini-table .wm-note {
     font-style: italic;
   }
+
+  /* Note card & pill badge styles */
+  .note-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin: 2px 0;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .note-card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .note-pill {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+  }
+  .pill-rest {
+    background: rgba(148, 163, 184, 0.15);
+    color: #cbd5e1;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+  }
+  .pill-status.pill-advanced {
+    background: rgba(34, 197, 94, 0.18);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.4);
+  }
+  .pill-status.pill-hold {
+    background: rgba(234, 179, 8, 0.15);
+    color: #facc15;
+    border: 1px solid rgba(234, 179, 8, 0.35);
+  }
+  .pill-status.pill-retreat {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+  }
+  .pill-tag {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--muted);
+    border: 1px solid var(--rule);
+  }
+  .note-card-cues {
+    margin: 4px 0 0;
+    padding-left: 18px;
+    list-style-type: disc;
+    color: var(--fg);
+  }
+  .note-card-cues li {
+    margin-bottom: 3px;
+  }
+  .note-card-cues li:last-child {
+    margin-bottom: 0;
+  }
+  .note-card-history {
+    margin-top: 6px;
+    padding-top: 5px;
+    border-top: 1px dotted var(--rule);
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.35;
+  }
+  .note-card-history .lbl-hist {
+    margin-right: 4px;
+  }
+
+  .ex.has-img {
     cursor: pointer;
     text-decoration: underline dotted color-mix(in srgb, var(--muted) 70%, transparent);
     text-underline-offset: 3px;
@@ -232,6 +311,8 @@
     tbody td::before { content: attr(data-l) "  "; color: var(--muted); font-size: 12px; }
     tbody td.ex::before { content: ""; }
     tbody td.ex { font-size: 16px; margin-bottom: 4px; }
+    tbody td[data-l="Note"]::before { display: none !important; }
+    tbody td[data-l="Note"] { padding-top: 4px; }
     tbody tr.warmup-card-row { border-bottom: none; padding: 4px 0 8px; }
     tbody tr.warmup-card-row td { padding: 0; }
     tbody tr.warmup-card-row td::before { display: none !important; }
@@ -381,6 +462,89 @@ function renderTabs(nextKey){
   });
 }
 
+function parseNote(raw) {
+  if (!raw || typeof raw !== "string") return null;
+  let text = raw.trim();
+
+  let rest = "";
+  if (text.match(/Rest\s+\d+/i) || text.match(/\d+\s*(?:min|sec)\s+rest/i)) {
+    const m = text.match(/Rest\s+(\d+(?:\.\d+)?\s*(?:min|sec|s))/i) || text.match(/(\d+(?:\.\d+)?\s*(?:min|sec|s))\s+rest/i);
+    if (m) {
+      rest = m[1].replace(/\s+/g, "");
+      text = text.replace(m[0], "");
+    }
+  }
+
+  let status = "";
+  let statusType = "";
+  const sm = text.match(/\b(ADVANCED(?:\s+to)?\s+\d+(?:\.\d+)?|HOLD\s+\d+(?:\.\d+)?(?:\s+Cal-\d+)?|RETREAT\s+\d+(?:\.\d+)?)/i);
+  if (sm) {
+    status = sm[1].trim();
+    const up = status.toUpperCase();
+    if (up.startsWith("ADV")) statusType = "advanced";
+    else if (up.startsWith("RET")) statusType = "retreat";
+    else statusType = "hold";
+    text = text.replace(sm[0], "");
+  }
+
+  const tags = [];
+  if (/\bsolo\b/i.test(text) && !/\bset 4 solo\b/i.test(text)) {
+    tags.push("Solo");
+    text = text.replace(/\bsolo\b/gi, "");
+  }
+  if (/\bstraight sets\b/i.test(text)) {
+    tags.push("Straight Sets");
+    text = text.replace(/\bstraight sets\b/gi, "");
+  }
+
+  text = text.replace(/^\s*[,.—–-]+\s*|\s*[,.—–-]+\s*$/g, "");
+  let rawCues = text
+    .split(/(?:\.\s+(?=[A-Z0-9])|\s+[—–-]\s+|;\s*)/)
+    .map(s => s.trim().replace(/^[,.—–-]+\s*|[,.—–-]+\s*$/g, ""))
+    .filter(s => s.length > 2 && !/^(solo|straight sets)$/i.test(s));
+
+  const historyItems = [];
+  const cues = [];
+  const datePattern = /^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+/i;
+
+  rawCues.forEach(c => {
+    if (datePattern.test(c) || /\b(?:all-top|improving from|load-match only)\b/i.test(c)) {
+      historyItems.push(c);
+    } else {
+      cues.push(c);
+    }
+  });
+
+  return { rest, status, statusType, tags, historyItems, cues, raw };
+}
+
+function renderNoteHtml(raw) {
+  if (!raw) return "";
+  const p = parseNote(raw);
+  if (!p) return "";
+  const badges = [];
+  if (p.rest) badges.push(`<span class="note-pill pill-rest">⏱️ ${esc(p.rest)}</span>`);
+  if (p.status) badges.push(`<span class="note-pill pill-status pill-${esc(p.statusType)}">${esc(p.status)}</span>`);
+  (p.tags || []).forEach(t => badges.push(`<span class="note-pill pill-tag">${esc(t)}</span>`));
+
+  if (!badges.length && !p.cues.length && !p.historyItems.length) {
+    return `<div class="note-card"><div class="note-card-text">${esc(raw)}</div></div>`;
+  }
+
+  let out = `<div class="note-card">`;
+  if (badges.length) {
+    out += `<div class="note-card-badges">${badges.join(" ")}</div>`;
+  }
+  if (p.cues.length) {
+    out += `<ul class="note-card-cues">` + p.cues.map(c => `<li>${esc(c)}</li>`).join("") + `</ul>`;
+  }
+  if (p.historyItems.length) {
+    out += `<div class="note-card-history"><span class="lbl-hist">📊</span> ${esc(p.historyItems.join(" · "))}</div>`;
+  }
+  out += `</div>`;
+  return out;
+}
+
 function renderSession(d){
   if(!d) return;
   document.getElementById("title").textContent = d.session || "";
@@ -431,7 +595,7 @@ function renderSession(d){
       <td data-l="Weight">${esc(r.weight)}</td>
       <td data-l="Target">${esc(r.target)}</td>
       <td class="muted" data-l="Breakdown">${esc(r.breakdown)}</td>
-      <td class="muted" data-l="Note">${esc(r.note)}</td>
+      <td data-l="Note">${renderNoteHtml(r.note)}</td>
     </tr>`;
   };
   const usedWarmup = new Set();
