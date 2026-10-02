@@ -292,9 +292,6 @@
     border-left: 3px solid #a855f7;
     padding-left: 12px;
   }
-  tbody tr.row-superset-first td {
-    border-top: 1px solid rgba(168, 85, 247, 0.25);
-  }
   tbody tr.row-superset-second td {
     border-bottom: 2px solid rgba(168, 85, 247, 0.4);
   }
@@ -406,9 +403,12 @@
       margin: 8px 0 !important;
       border-radius: 0 8px 8px 0;
     }
-    tbody tr.row-superset td:first-child {
-      border-left: none !important;
+    tbody tr.row-superset td {
+      border: none !important;
       padding-left: 0 !important;
+    }
+    tbody tr.row-superset-second {
+      border-bottom: 2px solid rgba(168, 85, 247, 0.4) !important;
     }
     tbody tr.superset-header-row {
       border-bottom: none !important;
